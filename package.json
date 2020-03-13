@@ -1,0 +1,21 @@
+{
+  "name": "apollo-link-firebase-ng",
+  "version": "1.0.0",
+  "description": "Query/Subscribe to Firebase Realtime DB with GraphQL/Apollo",
+  "main": "lib/index.js",
+  "scripts": {
+    "prepare": "sb-babel-cli src -o lib --typescript",
+    "watch": "yarn prepare -w"
+  },
+  "author": "steelbrain <i@steelbrain.me>",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.8.7",
+    "@babel/preset-env": "^7.8.7",
+    "@babel/preset-typescript": "^7.8.3",
+    "eslint-config-steelbrain": "^9.0.1",
+    "sb-babel-cli": "^3.0.0",
+    "typescript": "^3.8.3"
+  }
+}
