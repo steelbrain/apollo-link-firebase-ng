@@ -1,4 +1,5 @@
 node_modules
 /lib/
+/src/test.ts
 *.log
 .DS_Store

@@ -14,8 +14,14 @@
     "@babel/core": "^7.8.7",
     "@babel/preset-env": "^7.8.7",
     "@babel/preset-typescript": "^7.8.3",
+    "apollo-link": "^1.2.13",
     "eslint-config-steelbrain": "^9.0.1",
+    "firebase": "^7.11.0",
     "sb-babel-cli": "^3.0.0",
     "typescript": "^3.8.3"
+  },
+  "peerDependencies": {
+    "apollo-link": "^1.2.13",
+    "firebase": "^7.11.0"
   }
 }
