@@ -1,5 +1,5 @@
 node_modules
 /lib/
-/src/test.ts
+/src/client.test.ts
 *.log
 .DS_Store
