@@ -3,7 +3,8 @@ import { database as FDatabase } from 'firebase'
 import { hasDirectives, getOperationName, getQueryDefinition } from 'apollo-utilities'
 import { ApolloLink, Operation, NextLink, Observable, FetchResult } from 'apollo-link'
 
-import { gqlQueryToFirebaseQuery } from './common'
+import { parseGqlQuery } from './parser'
+import { executeFirebaseNode } from './transformer'
 
 export default class QueryLink extends ApolloLink {
   database: FDatabase.Database
@@ -29,11 +30,15 @@ export default class QueryLink extends ApolloLink {
       throw new Error(`Unsupported operation in FirebaseQueryLink: ${query.operation}`)
     }
 
-    const firebaseQuery = gqlQueryToFirebaseQuery({
+    const firebaseQuery = parseGqlQuery({
       operation,
-      operationName,
       query,
     })
+    executeFirebaseNode({
+      operation,
+      operationName,
+      tree: firebaseQuery,
+    }).catch(console.error)
     console.log('firebaseQuery', firebaseQuery)
 
     return new Observable(observer => {
