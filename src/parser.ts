@@ -1,37 +1,65 @@
 import { Operation } from 'apollo-link'
-import { OperationDefinitionNode, DirectiveNode, SelectionNode } from 'graphql/language/ast'
+import { OperationDefinitionNode, SelectionNode, ArgumentNode } from 'graphql/language/ast'
 
 import { FirebaseNode } from './types'
 
+function getArgumentValue({ arg, operation }: { arg: ArgumentNode; operation: Operation }) {
+  if (arg.value.kind === 'Variable') {
+    const value = operation[arg.value.name.value]
+    return value == null ? null : value
+  }
+
+  // Only process literal values
+  if (
+    arg.value.kind === 'BooleanValue' ||
+    arg.value.kind === 'StringValue' ||
+    arg.value.kind === 'IntValue' ||
+    arg.value.kind === 'FloatValue'
+  ) {
+    return arg.value.value
+  }
+
+  return null
+}
+
 function getDirectiveValue({
   operation,
-  firebaseDirective,
+  selection,
   name,
+  value = null,
 }: {
   operation: Operation
-  firebaseDirective: DirectiveNode
+  selection: SelectionNode
   name: string
+  value?: string | null
 }): any | null {
-  if (firebaseDirective.arguments == null) {
+  if (selection.directives == null) {
     return null
   }
-  for (let i = 0, { length } = firebaseDirective.arguments; i < length; i += 1) {
-    const arg = firebaseDirective.arguments[i]
-    if (arg.name.value === name) {
-      if (arg.value.kind === 'Variable') {
-        const value = operation.variables[arg.value.name.value]
-        return value == null ? null : value
+
+  for (let i = 0, { length } = selection.directives; i < length; i += 1) {
+    const directive = selection.directives[i]
+    if (directive.kind === 'Directive' && directive.name.kind === 'Name') {
+      if (directive.name.value === name) {
+        if (value == null) {
+          return true
+        }
+
+        if (directive.arguments == null) {
+          return null
+        }
+
+        const directiveArg = directive.arguments.find(item => item.kind === 'Argument' && item.name.value === value)
+
+        if (directiveArg == null) {
+          return null
+        }
+
+        return getArgumentValue({
+          arg: directiveArg,
+          operation,
+        })
       }
-      // Only process literal values
-      if (
-        arg.value.kind === 'BooleanValue' ||
-        arg.value.kind === 'StringValue' ||
-        arg.value.kind === 'IntValue' ||
-        arg.value.kind === 'FloatValue'
-      ) {
-        return arg.value.value
-      }
-      return null
     }
   }
 
@@ -50,103 +78,84 @@ function processGqlSelection({
     return null
   }
 
-  const firebaseDirective =
-    selection.directives != null ? selection.directives.find(item => item.name.value === 'firebase') : null
-
   const firebaseNode: FirebaseNode = {
     name: selection.name.value,
     parent: null,
-    ref: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'ref',
-        })
-      : null,
-    export: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'export',
-        })
-      : null,
-    key: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'key',
-        })
-      : null,
-    value: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'value',
-        })
-      : null,
-    array: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'array',
-        })
-      : null,
-    orderByChild: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'orderByChild',
-        })
-      : null,
-    orderByKey: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'orderByKey',
-        })
-      : null,
-    orderByValue: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'orderByValue',
-        })
-      : null,
-    limitToFirst: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'limitToFirst',
-        })
-      : null,
-    limitToLast: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'limitToLast',
-        })
-      : null,
-    startAt: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'startAt',
-        })
-      : null,
-    endAt: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'endAt',
-        })
-      : null,
-    equalTo: firebaseDirective
-      ? getDirectiveValue({
-          operation,
-          firebaseDirective,
-          name: 'equalTo',
-        })
-      : null,
+    ref: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'ref',
+    }),
+    export: getDirectiveValue({
+      operation,
+      selection,
+      name: 'export',
+      value: 'as',
+    }),
+    key: getDirectiveValue({
+      operation,
+      selection,
+      name: 'key',
+    }),
+    value: getDirectiveValue({
+      operation,
+      selection,
+      name: 'value',
+    }),
+    array: getDirectiveValue({
+      operation,
+      selection,
+      name: 'array',
+    }),
+    orderByChild: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'orderByChild',
+    }),
+    orderByKey: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'orderByKey',
+    }),
+    orderByValue: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'orderByValue',
+    }),
+    limitToFirst: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'limitToFirst',
+    }),
+    limitToLast: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'limitToLast',
+    }),
+    startAt: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'startAt',
+    }),
+    endAt: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'endAt',
+    }),
+    equalTo: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'equalTo',
+    }),
     children: [],
   }
 

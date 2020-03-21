@@ -1,3 +1,5 @@
+import { Observable } from 'apollo-link'
+
 export interface FirebaseNode {
   name: string
   parent: FirebaseNode | null
@@ -20,7 +22,10 @@ export interface FirebaseNode {
   equalTo: any | null
 }
 
-type FirebaseNodeTransformed = FirebaseNode & {
-  _ref?: any
-  _value?: any
+export type FirebaseNodeTransformed = FirebaseNode & {
+  ref: string | null
+  observable: Observable<any>
+  databaseSnapshot: any | null
 }
+
+export type OperationType = 'query' | 'subscribe'
