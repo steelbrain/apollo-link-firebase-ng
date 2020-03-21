@@ -4,7 +4,7 @@ export interface FirebaseNode {
   name: string
   parent: FirebaseNode | null
 
-  ref: string | string[] | null
+  ref: string | null
   export: string | null
   key: boolean | null
   value: boolean | null
@@ -24,8 +24,20 @@ export interface FirebaseNode {
 
 export type FirebaseNodeTransformed = FirebaseNode & {
   ref: string | null
+  parent: FirebaseNodeExecutable | null
+  parentValue: any | null
+  parentIndex: number | null
+}
+
+export type FirebaseNodeExecutable = FirebaseNodeTransformed & {
+  databaseSnapshot: any
+  databaseValue: any
   observable: Observable<any>
-  databaseSnapshot: any | null
+}
+
+export interface FirebaseValue {
+  __key: string | null
+  __value: any
 }
 
 export type OperationType = 'query' | 'subscribe'

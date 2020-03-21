@@ -4,9 +4,7 @@ import { hasDirectives, getOperationName, getQueryDefinition } from 'apollo-util
 import { ApolloLink, Operation, NextLink, Observable, FetchResult } from 'apollo-link'
 
 import { parseGqlQuery } from './parser'
-import { executeFirebaseTree } from './transformer'
-
-import { observeAll } from './common'
+import { executeFirebaseNodes } from './executor'
 
 export default class QueryLink extends ApolloLink {
   database: FDatabase.Database
@@ -37,47 +35,29 @@ export default class QueryLink extends ApolloLink {
       query,
     })
 
-    const executedTree = executeFirebaseTree({
+    const observable = executeFirebaseNodes({
       database: this.database,
       operation,
       operationName,
-      tree: firebaseQuery,
+      nodes: firebaseQuery,
+      parent: null,
       operationType: 'query',
     })
 
-    const executedTreeObservable = observeAll(executedTree.map(item => item.observable))
-
     return new Observable(observer => {
-      executedTreeObservable.subscribe({
+      const subscription = observable.subscribe({
         next(value) {
-          console.log('next', value)
+          observer.next({ data: value })
         },
         error(err) {
-          console.error('err', err)
+          observer.error(err)
         },
         complete() {
-          console.log('complete')
+          observer.complete()
         },
       })
-      executedTree.forEach(item => {
-        if (item.observable != null) {
-          console.log('subscribing')
-          item.observable.subscribe(
-            value => {
-              console.log('value', value)
-            },
-            error => {
-              console.error('error', error)
-            },
-            () => {
-              console.log('complete')
-            },
-          )
-        }
-      })
-      // observer.error(new Error('test'))
       return () => {
-        // Unsubscribe
+        subscription.unsubscribe()
       }
     })
   }
