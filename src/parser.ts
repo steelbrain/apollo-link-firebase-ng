@@ -1,5 +1,5 @@
 import { Operation } from 'apollo-link'
-import { OperationDefinitionNode, SelectionNode, ArgumentNode } from 'graphql/language/ast'
+import { OperationDefinitionNode, SelectionNode, ArgumentNode, FragmentDefinitionNode } from 'graphql/language/ast'
 
 import { FirebaseNode } from './types'
 
@@ -73,9 +73,11 @@ function getDirectiveValue({
 function processGqlSelection({
   selection,
   operation,
+  fragmentsMap,
 }: {
   selection: SelectionNode
   operation: Operation
+  fragmentsMap: Map<string, FragmentDefinitionNode>
 }): FirebaseNode | null {
   if (selection.kind !== 'Field') {
     // TODO: We don't support fragments. Yet.
@@ -185,18 +187,36 @@ function processGqlSelection({
 
   if (selection.selectionSet != null) {
     selection.selectionSet.selections.forEach(childSelection => {
-      const childFirebaseNode = processGqlSelection({
-        operation,
-        selection: childSelection,
-      })
-      if (childFirebaseNode != null) {
-        childFirebaseNode.parent = firebaseNode
-        if (childFirebaseNode.key || childFirebaseNode.value) {
-          // ^ Parent must be an associative array then
-          firebaseNode.array = true
+      let selections: SelectionNode[] | ReadonlyArray<SelectionNode>
+      if (childSelection.kind === 'FragmentSpread') {
+        const fragmentName = childSelection.name.value
+        const fragment = fragmentsMap.get(fragmentName)
+        if (fragment == null) {
+          throw new Error(`Fragment '${fragmentName}' not found`)
         }
-        firebaseNode.children.push(childFirebaseNode)
+
+        selections = fragment.selectionSet.selections
+      } else if (childSelection.kind === 'InlineFragment') {
+        selections = childSelection.selectionSet.selections
+      } else {
+        selections = [childSelection]
       }
+
+      selections.forEach(childSelectionItem => {
+        const childFirebaseNode = processGqlSelection({
+          operation,
+          selection: childSelectionItem,
+          fragmentsMap,
+        })
+        if (childFirebaseNode != null) {
+          childFirebaseNode.parent = firebaseNode
+          if (childFirebaseNode.key || childFirebaseNode.value) {
+            // ^ Parent must be an associative array then
+            firebaseNode.array = true
+          }
+          firebaseNode.children.push(childFirebaseNode)
+        }
+      })
     })
   }
 
@@ -205,11 +225,21 @@ function processGqlSelection({
 
 function parseGqlQuery({ operation, query }: { operation: Operation; query: OperationDefinitionNode }) {
   const tree: FirebaseNode[] = []
+  const fragmentsMap: Map<string, FragmentDefinitionNode> = new Map()
+
+  operation.query.definitions.forEach(item => {
+    if (item.kind !== 'FragmentDefinition') {
+      return
+    }
+
+    fragmentsMap.set(item.name.value, item)
+  })
 
   query.selectionSet.selections.forEach(selection => {
     const firebaseNode = processGqlSelection({
       operation,
       selection,
+      fragmentsMap,
     })
     if (firebaseNode != null) {
       tree.push(firebaseNode)
