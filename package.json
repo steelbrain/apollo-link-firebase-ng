@@ -1,6 +1,6 @@
 {
   "name": "apollo-link-firebase-ng",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Query/Subscribe to Firebase Realtime DB with GraphQL/Apollo",
   "main": "lib/index.js",
   "scripts": {
