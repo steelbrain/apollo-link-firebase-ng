@@ -3,42 +3,110 @@
 import { database as FDatabase } from 'firebase'
 import { Operation, Observable } from 'apollo-link'
 import { observeAll } from './common'
-import { FirebaseValue, FirebaseNode, FirebaseNodeTransformed, OperationType, FirebaseNodeExecutable } from './types'
+import { FirebaseNode, FirebaseNodeTransformed, OperationType, FirebaseNodeExecutable, FirebaseVariables } from './types'
+
+function resolveExportedName(name: string, parent: FirebaseNodeTransformed, parentValue: any) {
+  for (let i = 0, { length } = parent.children; i < length; i += 1) {
+    const child = parent.children[i]
+    if (child.export === name) {
+      if (child.key) {
+        return parentValue.__key
+      }
+      return parentValue[child.name]
+    }
+  }
+
+  if (parent.parent) {
+    return resolveExportedName(name, parent.parent, parent.parentValue)
+  }
+  return null
+}
+
+function resolveFirebaseVariableValue(
+  payload: string | null,
+  parent: FirebaseNodeTransformed | null,
+  parentValue: any,
+): string | null {
+  if (parent == null || payload == null) {
+    return payload
+  }
+
+  let resolved = payload
+  let startingIdx = -1
+  let endingIdx = -1
+  do {
+    startingIdx = resolved.indexOf('$')
+    endingIdx = resolved.indexOf('$', startingIdx + 1)
+
+    if (startingIdx !== -1 && endingIdx !== -1) {
+      const variableName = resolved.slice(startingIdx + 1, endingIdx)
+      const variableValue = resolveExportedName(variableName, parent, parentValue)
+      resolved = `${resolved.slice(0, startingIdx)}${variableValue}${resolved.slice(endingIdx + 1)}`
+    }
+  } while (startingIdx !== -1 && endingIdx !== -1)
+
+  return resolved
+}
+
+function resolveFirebaseVariables(
+  variables: FirebaseVariables,
+  parent: FirebaseNodeTransformed | null,
+  parentValue: any,
+): FirebaseVariables {
+  const newVariables: FirebaseVariables = {
+    ref: resolveFirebaseVariableValue(variables.ref, parent, parentValue),
+    orderByChild: resolveFirebaseVariableValue(variables.orderByChild, parent, parentValue),
+    orderByKey: variables.orderByKey,
+    orderByValue: variables.orderByValue,
+    limitToFirst: variables.limitToFirst,
+    limitToLast: variables.limitToLast,
+    startAt: resolveFirebaseVariableValue(variables.startAt, parent, parentValue),
+    endAt: resolveFirebaseVariableValue(variables.endAt, parent, parentValue),
+    equalTo: resolveFirebaseVariableValue(variables.equalTo, parent, parentValue),
+  }
+
+  return newVariables
+}
 
 function getDatabaseRef({
   database,
-  node,
-  ref,
+  variables,
 }: {
   database: FDatabase.Database
-  node: FirebaseNode
-  ref: string
+  variables: FirebaseVariables
 }): FDatabase.Reference {
-  const databaseRef = database.ref(ref)
+  const databaseRef = database.ref(variables.ref as string)
 
-  if (node.orderByChild != null) {
-    databaseRef.orderByChild(node.orderByChild)
+  if (variables.orderByChild != null) {
+    databaseRef.orderByChild(variables.orderByChild)
   }
-  if (node.orderByKey) {
+
+  if (variables.orderByKey) {
     databaseRef.orderByKey()
   }
-  if (node.orderByValue) {
+
+  if (variables.orderByValue) {
     databaseRef.orderByValue()
   }
-  if (node.limitToFirst != null) {
-    databaseRef.limitToFirst(node.limitToFirst)
+
+  if (variables.limitToFirst != null) {
+    databaseRef.limitToFirst(variables.limitToFirst)
   }
-  if (node.limitToLast != null) {
-    databaseRef.limitToLast(node.limitToLast)
+
+  if (variables.limitToLast != null) {
+    databaseRef.limitToLast(variables.limitToLast)
   }
-  if (node.startAt != null) {
-    databaseRef.startAt(node.startAt)
+
+  if (variables.startAt != null) {
+    databaseRef.startAt(variables.startAt)
   }
-  if (node.endAt != null) {
-    databaseRef.endAt(node.endAt)
+
+  if (variables.endAt != null) {
+    databaseRef.endAt(variables.endAt)
   }
-  if (node.equalTo != null) {
-    databaseRef.equalTo(node.equalTo)
+
+  if (variables.equalTo != null) {
+    databaseRef.equalTo(variables.equalTo)
   }
 
   return databaseRef
@@ -49,12 +117,10 @@ function transformNodes(nodes: FirebaseNode[], parent: FirebaseNodeTransformed['
   const parentValue = parent != null ? parent.databaseValue : null
 
   nodes.forEach(item => {
-    const { ref } = item
     if (Array.isArray(parentValue)) {
       parentValue.forEach((parentValueItem, idx) => {
         transformed.push({
           ...item,
-          ref,
           parent,
           parentValue: parentValueItem,
           parentIndex: idx,
@@ -63,7 +129,6 @@ function transformNodes(nodes: FirebaseNode[], parent: FirebaseNodeTransformed['
     } else {
       transformed.push({
         ...item,
-        ref,
         parent,
         parentValue,
         parentIndex: null,
@@ -79,18 +144,20 @@ function transformNodeSnapshot({ snapshot, node }: { snapshot: any; node: Fireba
     return snapshot
   }
 
-  let value: FirebaseValue[]
+  let value: any
 
   if (Array.isArray(snapshot)) {
     value = snapshot.map(__value => ({
       __key: null,
       __value,
     }))
-  } else {
+  } else if (node.array) {
     value = Object.keys(snapshot).map(key => ({
       __key: key,
       __value: snapshot[key],
     }))
+  } else {
+    value = snapshot
   }
 
   return value
@@ -109,8 +176,6 @@ function executeFirebaseNode({
   operationName: string
   operationType: OperationType
 }): FirebaseNodeExecutable {
-  const { ref } = node
-
   const executableNode: FirebaseNodeExecutable = {
     ...node,
     observable: null as any,
@@ -120,20 +185,20 @@ function executeFirebaseNode({
 
   let observable: Observable<any>
 
-  if (ref != null) {
+  if (node.variables.ref != null) {
     observable = new Observable(observer => {
+      const variables = resolveFirebaseVariables(node.variables, node.parent, node.parentValue)
       const databaseRef = getDatabaseRef({
         database,
-        node,
-        ref,
+        variables,
       })
 
-      const valueSubscription: ZenObservable.Subscription[] = []
+      let valueSubscription: ZenObservable.Subscription | null = null
 
       function handleCleanup() {
-        valueSubscription.forEach(item => {
-          item.unsubscribe()
-        })
+        if (valueSubscription != null) {
+          valueSubscription.unsubscribe()
+        }
         databaseRef.off()
       }
 
@@ -170,23 +235,21 @@ function executeFirebaseNode({
           parent: executableNode,
         })
 
-        valueSubscription.push(
-          valueObservable.subscribe({
-            next(value) {
-              observer.next({
-                name: node.name,
-                parentIndex: node.parentIndex,
-                value,
-              })
-            },
-            complete() {
-              observer.complete()
-            },
-            error(err) {
-              observer.error(err)
-            },
-          }),
-        )
+        valueSubscription = valueObservable.subscribe({
+          next(value) {
+            observer.next({
+              name: node.name,
+              parentIndex: node.parentIndex,
+              value,
+            })
+          },
+          complete() {
+            observer.complete()
+          },
+          error(err) {
+            observer.error(err)
+          },
+        })
       }
 
       if (operationType === 'query') {

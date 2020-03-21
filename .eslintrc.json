@@ -2,6 +2,7 @@
   "extends": ["steelbrain"],
   "rules": {
     "import/extensions": "off",
+    "import/prefer-default-export": "off",
     "@typescript-eslint/member-delimiter-style": "off"
   }
 }

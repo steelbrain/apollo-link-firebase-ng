@@ -6,6 +6,10 @@ import { FirebaseNode } from './types'
 function getArgumentValue({ arg, operation }: { arg: ArgumentNode; operation: Operation }) {
   if (arg.value.kind === 'Variable') {
     const value = operation[arg.value.name.value]
+    if (typeof value === 'undefined') {
+      throw new Error(`Use of undefined variable: ${arg.value.name.value}`)
+    }
+
     return value == null ? null : value
   }
 
@@ -81,12 +85,6 @@ function processGqlSelection({
   const firebaseNode: FirebaseNode = {
     name: selection.name.value,
     parent: null,
-    ref: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'ref',
-    }),
     export: getDirectiveValue({
       operation,
       selection,
@@ -108,55 +106,65 @@ function processGqlSelection({
       selection,
       name: 'array',
     }),
-    orderByChild: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'orderByChild',
-    }),
-    orderByKey: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'orderByKey',
-    }),
-    orderByValue: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'orderByValue',
-    }),
-    limitToFirst: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'limitToFirst',
-    }),
-    limitToLast: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'limitToLast',
-    }),
-    startAt: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'startAt',
-    }),
-    endAt: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'endAt',
-    }),
-    equalTo: getDirectiveValue({
-      operation,
-      selection,
-      name: 'firebase',
-      value: 'equalTo',
-    }),
+
     children: [],
+
+    variables: {
+      ref: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'ref',
+      }),
+      orderByChild: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'orderByChild',
+      }),
+      orderByKey: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'orderByKey',
+      }),
+      orderByValue: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'orderByValue',
+      }),
+      limitToFirst: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'limitToFirst',
+      }),
+      limitToLast: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'limitToLast',
+      }),
+      startAt: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'startAt',
+      }),
+      endAt: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'endAt',
+      }),
+      equalTo: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'equalTo',
+      }),
+    },
   }
 
   if (selection.selectionSet != null) {
@@ -167,6 +175,10 @@ function processGqlSelection({
       })
       if (childFirebaseNode != null) {
         childFirebaseNode.parent = firebaseNode
+        if (childFirebaseNode.key || childFirebaseNode.value) {
+          // ^ Parent must be an associative array then
+          firebaseNode.array = true
+        }
         firebaseNode.children.push(childFirebaseNode)
       }
     })
