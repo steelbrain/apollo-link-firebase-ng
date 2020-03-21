@@ -20,7 +20,9 @@ export interface FirebaseNode {
   name: string
   parent: FirebaseNode | null
 
+  type: string
   export: string | null
+  import: string | null
   key: boolean | null
   value: boolean | null
   array: boolean | null

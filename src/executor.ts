@@ -19,6 +19,10 @@ function resolveExportedName(name: string, parent: FirebaseNodeTransformed, pare
       if (child.key) {
         return parentValue.__key
       }
+      if (child.import) {
+        // Find the originally exported name
+        return resolveExportedName(child.import, parent, parentValue)
+      }
       return parentValue[child.name]
     }
   }
@@ -323,13 +327,17 @@ function executeFirebaseNode({
     })
   } else {
     observable = new Observable(observer => {
-      let databaseValue = null
+      let databaseValue: any = null
 
       if (node.parentValue != null) {
         if (node.key) {
           databaseValue = node.parentValue.__key
         } else if (node.value) {
           databaseValue = node.parentValue.__value
+        } else if (node.import) {
+          databaseValue = node.parent == null ? null : resolveExportedName(node.import, node.parent, node.parentValue)
+        } else if (node.name === '__typename') {
+          databaseValue = node.parent == null ? null : node.parent.type
         } else {
           databaseValue = node.parentValue[node.name]
         }

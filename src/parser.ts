@@ -91,6 +91,12 @@ function processGqlSelection({
       name: 'export',
       value: 'as',
     }),
+    import: getDirectiveValue({
+      operation,
+      selection,
+      name: 'import',
+      value: 'from',
+    }),
     key: getDirectiveValue({
       operation,
       selection,
@@ -105,6 +111,12 @@ function processGqlSelection({
       operation,
       selection,
       name: 'array',
+    }),
+    type: getDirectiveValue({
+      operation,
+      selection,
+      name: 'firebase',
+      value: 'type',
     }),
 
     children: [],
@@ -165,6 +177,10 @@ function processGqlSelection({
         value: 'equalTo',
       }),
     },
+  }
+
+  if (firebaseNode.variables.ref != null && typeof firebaseNode.type !== 'string') {
+    throw new Error(`Missing type parameter in firebase directive`)
   }
 
   if (selection.selectionSet != null) {
