@@ -12,6 +12,10 @@ export interface FirebaseVariables {
   equalTo: any | null
 }
 
+export type FirebaseVariablesResolved = FirebaseVariables & {
+  key: string
+}
+
 export interface FirebaseNode {
   name: string
   parent: FirebaseNode | null

@@ -1,6 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import { database as FDatabase } from 'firebase'
-import { hasDirectives, getOperationName, getQueryDefinition } from 'apollo-utilities'
+import { hasDirectives, getOperationName, getOperationDefinition } from 'apollo-utilities'
 import { ApolloLink, Operation, NextLink, Observable, FetchResult } from 'apollo-link'
 
 import { parseGqlQuery } from './parser'
@@ -22,12 +22,12 @@ export default class QueryLink extends ApolloLink {
       throw new Error(`Missing @firebase directive for Operation: ${operationName}`)
     }
 
-    const query = getQueryDefinition(operation.query)
-    if (query.operation !== 'query') {
+    const query = getOperationDefinition(operation.query)
+    if (query == null || query.operation !== 'query') {
       if (forward != null) {
         return forward(operation)
       }
-      throw new Error(`Unsupported operation in FirebaseQueryLink: ${query.operation}`)
+      throw new Error(`Unsupported operation in FirebaseQueryLink`)
     }
 
     const firebaseQuery = parseGqlQuery({

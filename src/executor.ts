@@ -3,7 +3,14 @@
 import { database as FDatabase } from 'firebase'
 import { Operation, Observable } from 'apollo-link'
 import { observeAll } from './common'
-import { FirebaseNode, FirebaseNodeTransformed, OperationType, FirebaseNodeExecutable, FirebaseVariables } from './types'
+import {
+  FirebaseNode,
+  FirebaseNodeTransformed,
+  OperationType,
+  FirebaseNodeExecutable,
+  FirebaseVariables,
+  FirebaseVariablesResolved,
+} from './types'
 
 function resolveExportedName(name: string, parent: FirebaseNodeTransformed, parentValue: any) {
   for (let i = 0, { length } = parent.children; i < length; i += 1) {
@@ -22,16 +29,12 @@ function resolveExportedName(name: string, parent: FirebaseNodeTransformed, pare
   return null
 }
 
-function resolveFirebaseVariableValue(
-  payload: string | null,
-  parent: FirebaseNodeTransformed | null,
-  parentValue: any,
-): string | null {
+function resolveFirebaseVariableValue(payload: string, parent: FirebaseNodeTransformed | null, parentValue: any): string {
   if (parent == null || payload == null) {
     return payload
   }
 
-  let resolved = payload
+  let resolved = payload.toString()
   let startingIdx = -1
   let endingIdx = -1
   do {
@@ -52,20 +55,50 @@ function resolveFirebaseVariables(
   variables: FirebaseVariables,
   parent: FirebaseNodeTransformed | null,
   parentValue: any,
-): FirebaseVariables {
-  const newVariables: FirebaseVariables = {
-    ref: resolveFirebaseVariableValue(variables.ref, parent, parentValue),
-    orderByChild: resolveFirebaseVariableValue(variables.orderByChild, parent, parentValue),
-    orderByKey: variables.orderByKey,
-    orderByValue: variables.orderByValue,
-    limitToFirst: variables.limitToFirst,
-    limitToLast: variables.limitToLast,
-    startAt: resolveFirebaseVariableValue(variables.startAt, parent, parentValue),
-    endAt: resolveFirebaseVariableValue(variables.endAt, parent, parentValue),
-    equalTo: resolveFirebaseVariableValue(variables.equalTo, parent, parentValue),
+): FirebaseVariablesResolved {
+  const key: string[] = []
+  let { ref, orderByChild, startAt, endAt, equalTo } = variables
+  const { orderByKey, orderByValue, limitToFirst, limitToLast } = variables
+
+  if (ref != null) {
+    ref = resolveFirebaseVariableValue(ref, parent, parentValue)
+    key.push(ref)
+    if (orderByChild) {
+      orderByChild = resolveFirebaseVariableValue(orderByChild, parent, parentValue)
+      key.push(orderByChild)
+    } else {
+      key.push('-')
+    }
+    key.push(orderByKey ? 'yes' : 'no')
+    key.push(orderByValue ? 'yes' : 'no')
+    key.push(limitToFirst == null ? '-' : limitToFirst.toString())
+    key.push(limitToLast == null ? '-' : limitToLast.toString())
+    if (startAt != null) {
+      startAt = resolveFirebaseVariableValue(startAt, parent, parentValue)
+    }
+    key.push(startAt == null ? '-' : startAt)
+    if (endAt != null) {
+      endAt = resolveFirebaseVariableValue(endAt, parent, parentValue)
+    }
+    key.push(endAt == null ? '-' : endAt)
+    if (equalTo != null) {
+      equalTo = resolveFirebaseVariableValue(equalTo, parent, parentValue)
+    }
+    key.push(equalTo == null ? '-' : equalTo)
   }
 
-  return newVariables
+  return {
+    key: key.join('$'),
+    ref,
+    orderByChild,
+    orderByValue,
+    orderByKey,
+    limitToLast,
+    limitToFirst,
+    startAt,
+    endAt,
+    equalTo,
+  }
 }
 
 function getDatabaseRef({
@@ -199,7 +232,8 @@ function executeFirebaseNode({
         if (valueSubscription != null) {
           valueSubscription.unsubscribe()
         }
-        databaseRef.off()
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        databaseRef.off('value', handleValue)
       }
 
       function handleValue(firebaseValue) {
@@ -244,7 +278,9 @@ function executeFirebaseNode({
             })
           },
           complete() {
-            observer.complete()
+            if (operationType === 'query') {
+              observer.complete()
+            }
           },
           error(err) {
             observer.error(err)
