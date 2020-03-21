@@ -2,6 +2,8 @@
 
 import { database as FDatabase } from 'firebase'
 import { Operation, Observable } from 'apollo-link'
+import { compare } from 'fast-json-patch'
+
 import { observeAll } from './common'
 import {
   FirebaseNode,
@@ -11,6 +13,17 @@ import {
   FirebaseVariables,
   FirebaseVariablesResolved,
 } from './types'
+
+function pathExistsInNode(path: string[], node: FirebaseNode, idx: number): boolean {
+  if (node.children.length === 0) {
+    return true
+  }
+  const relevantChild = node.children.find(nodeChild => nodeChild.name === path[idx])
+  if (relevantChild) {
+    return pathExistsInNode(path, relevantChild, idx + 1)
+  }
+  return false
+}
 
 function resolveExportedName(name: string, parent: FirebaseNodeTransformed, parentValue: any) {
   for (let i = 0, { length } = parent.children; i < length; i += 1) {
@@ -116,7 +129,6 @@ function getDatabaseRef({
 }): FDatabase.Reference {
   const cached = cache.get(variables.key)
   if (cached != null) {
-    console.log('cache hit')
     return cached
   }
 
@@ -296,12 +308,22 @@ function executeFirebaseNode({
         databaseRef.off('value', handleValue)
       }
 
+      let lastValue: Record<string, any> | null = null
       function handleValue(firebaseValue) {
         const databaseSnapshot = firebaseValue.val()
         const databaseValue = transformNodeSnapshot({
           snapshot: databaseSnapshot,
           node,
         })
+
+        if (lastValue != null) {
+          const diff = compare(lastValue as any, databaseValue)
+          const changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
+          if (!changedForReal) {
+            return
+          }
+        }
+        lastValue = databaseValue
 
         executableNode.databaseSnapshot = databaseSnapshot
         executableNode.databaseValue = databaseValue

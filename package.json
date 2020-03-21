@@ -9,7 +9,9 @@
   },
   "author": "steelbrain <i@steelbrain.me>",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "fast-json-patch": "^3.0.0-1"
+  },
   "devDependencies": {
     "@babel/core": "^7.8.7",
     "@babel/preset-env": "^7.8.7",
