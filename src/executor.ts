@@ -218,6 +218,48 @@ function executeFirebaseNode({
 
   let observable: Observable<any>
 
+  function processNodeValue(observer: ZenObservable.SubscriptionObserver<any>): ZenObservable.Subscription | null {
+    if (node.children.length === 0) {
+      observer.next({
+        name: node.name,
+        parentIndex: node.parentIndex,
+        value: executableNode.databaseValue,
+      })
+      if (operationType === 'query') {
+        observer.complete()
+      }
+      return null
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    const valueObservable = executeFirebaseNodes({
+      database,
+      operation,
+      operationName,
+      operationType,
+      nodes: node.children,
+      parent: executableNode,
+    })
+
+    return valueObservable.subscribe({
+      next(value) {
+        observer.next({
+          name: node.name,
+          parentIndex: node.parentIndex,
+          value,
+        })
+      },
+      complete() {
+        if (operationType === 'query') {
+          observer.complete()
+        }
+      },
+      error(err) {
+        observer.error(err)
+      },
+    })
+  }
+
   if (node.variables.ref != null) {
     observable = new Observable(observer => {
       const variables = resolveFirebaseVariables(node.variables, node.parent, node.parentValue)
@@ -226,7 +268,7 @@ function executeFirebaseNode({
         variables,
       })
 
-      let valueSubscription: ZenObservable.Subscription | null = null
+      let valueSubscription: ReturnType<typeof processNodeValue> = null
 
       function handleCleanup() {
         if (valueSubscription != null) {
@@ -246,46 +288,11 @@ function executeFirebaseNode({
         executableNode.databaseSnapshot = databaseSnapshot
         executableNode.databaseValue = databaseValue
 
-        if (node.children.length === 0) {
-          observer.next({
-            name: node.name,
-            parentIndex: node.parentIndex,
-            value: databaseValue,
-          })
-          if (operationType === 'query') {
-            observer.complete()
-            handleCleanup()
-          }
-          return
+        valueSubscription = processNodeValue(observer)
+
+        if (node.children.length === 0 && operationType === 'query') {
+          handleCleanup()
         }
-
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const valueObservable = executeFirebaseNodes({
-          database,
-          operation,
-          operationName,
-          operationType,
-          nodes: node.children,
-          parent: executableNode,
-        })
-
-        valueSubscription = valueObservable.subscribe({
-          next(value) {
-            observer.next({
-              name: node.name,
-              parentIndex: node.parentIndex,
-              value,
-            })
-          },
-          complete() {
-            if (operationType === 'query') {
-              observer.complete()
-            }
-          },
-          error(err) {
-            observer.error(err)
-          },
-        })
       }
 
       if (operationType === 'query') {
@@ -298,24 +305,26 @@ function executeFirebaseNode({
     })
   } else {
     observable = new Observable(observer => {
-      let value = null
+      let databaseValue = null
 
       if (node.parentValue != null) {
         if (node.key) {
-          value = node.parentValue.__key
+          databaseValue = node.parentValue.__key
         } else if (node.value) {
-          value = node.parentValue.__value
+          databaseValue = node.parentValue.__value
         } else {
-          value = node.parentValue[node.name]
+          databaseValue = node.parentValue[node.name]
         }
       }
+      executableNode.databaseValue = databaseValue
 
-      observer.next({
-        name: node.name,
-        parentIndex: node.parentIndex,
-        value: value != null ? value : null,
-      })
-      observer.complete()
+      const valueSubscription = processNodeValue(observer)
+
+      return () => {
+        if (valueSubscription != null) {
+          valueSubscription.unsubscribe()
+        }
+      }
     })
   }
 
