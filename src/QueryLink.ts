@@ -42,6 +42,7 @@ export default class QueryLink extends ApolloLink {
       nodes: firebaseQuery,
       parent: null,
       operationType: 'query',
+      cache: new Map(),
     })
 
     return new Observable(observer => {

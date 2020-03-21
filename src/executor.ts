@@ -104,10 +104,18 @@ function resolveFirebaseVariables(
 function getDatabaseRef({
   database,
   variables,
+  cache,
 }: {
   database: FDatabase.Database
-  variables: FirebaseVariables
+  variables: FirebaseVariablesResolved
+  cache: Map<string, any>
 }): FDatabase.Reference {
+  const cached = cache.get(variables.key)
+  if (cached != null) {
+    console.log('cache hit')
+    return cached
+  }
+
   const databaseRef = database.ref(variables.ref as string)
 
   if (variables.orderByChild != null) {
@@ -141,6 +149,8 @@ function getDatabaseRef({
   if (variables.equalTo != null) {
     databaseRef.equalTo(variables.equalTo)
   }
+
+  cache.set(variables.key, databaseRef)
 
   return databaseRef
 }
@@ -202,12 +212,14 @@ function executeFirebaseNode({
   operation,
   operationName,
   operationType,
+  cache,
 }: {
   node: FirebaseNodeTransformed
   database: FDatabase.Database
   operation: Operation
   operationName: string
   operationType: OperationType
+  cache: Map<string, any>
 }): FirebaseNodeExecutable {
   const executableNode: FirebaseNodeExecutable = {
     ...node,
@@ -239,6 +251,7 @@ function executeFirebaseNode({
       operationType,
       nodes: node.children,
       parent: executableNode,
+      cache,
     })
 
     return valueObservable.subscribe({
@@ -266,6 +279,7 @@ function executeFirebaseNode({
       const databaseRef = getDatabaseRef({
         database,
         variables,
+        cache,
       })
 
       let valueSubscription: ReturnType<typeof processNodeValue> = null
@@ -288,7 +302,11 @@ function executeFirebaseNode({
         executableNode.databaseSnapshot = databaseSnapshot
         executableNode.databaseValue = databaseValue
 
-        valueSubscription = processNodeValue(observer)
+        const newValueSubscription = processNodeValue(observer)
+        if (valueSubscription != null) {
+          valueSubscription.unsubscribe()
+        }
+        valueSubscription = newValueSubscription
 
         if (node.children.length === 0 && operationType === 'query') {
           handleCleanup()
@@ -340,6 +358,7 @@ function executeFirebaseNodes({
   nodes,
   parent,
   operationType,
+  cache,
 }: {
   database: FDatabase.Database
   operation: Operation
@@ -347,6 +366,7 @@ function executeFirebaseNodes({
   nodes: FirebaseNode[]
   parent: FirebaseNodeExecutable | null
   operationType: OperationType
+  cache: Map<string, any>
 }): Observable<any> {
   const transformedNodes = transformNodes(nodes, parent)
 
@@ -357,6 +377,7 @@ function executeFirebaseNodes({
       operation,
       operationName,
       operationType,
+      cache,
     }),
   )
 

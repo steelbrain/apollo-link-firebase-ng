@@ -42,6 +42,7 @@ export default class SubscriptionLink extends ApolloLink {
       nodes: firebaseQuery,
       parent: null,
       operationType: 'subscribe',
+      cache: new Map(),
     })
 
     return new Observable(observer => {
