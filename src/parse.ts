@@ -223,7 +223,7 @@ function processGqlSelection({
   return firebaseNode
 }
 
-function parseGqlQuery({ operation, query }: { operation: Operation; query: OperationDefinitionNode }) {
+export default function parse({ operation, query }: { operation: Operation; query: OperationDefinitionNode }) {
   const tree: FirebaseNode[] = []
   const fragmentsMap: Map<string, FragmentDefinitionNode> = new Map()
 
@@ -248,5 +248,3 @@ function parseGqlQuery({ operation, query }: { operation: Operation; query: Oper
 
   return tree
 }
-
-export { parseGqlQuery }

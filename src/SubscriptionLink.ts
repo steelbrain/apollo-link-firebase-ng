@@ -3,8 +3,8 @@ import { database as FDatabase } from 'firebase'
 import { hasDirectives, getOperationName, getOperationDefinition } from 'apollo-utilities'
 import { ApolloLink, Operation, NextLink, Observable, FetchResult } from 'apollo-link'
 
-import { parseGqlQuery } from './parser'
-import { executeFirebaseNodes } from './executor'
+import parse from './parse'
+import execute from './execute'
 
 export default class SubscriptionLink extends ApolloLink {
   database: FDatabase.Database
@@ -30,12 +30,12 @@ export default class SubscriptionLink extends ApolloLink {
       throw new Error(`Unsupported operation in FirebaseSubscriptionLink`)
     }
 
-    const firebaseQuery = parseGqlQuery({
+    const firebaseQuery = parse({
       operation,
       query,
     })
 
-    const observable = executeFirebaseNodes({
+    const observable = execute({
       database: this.database,
       operation,
       operationName,
