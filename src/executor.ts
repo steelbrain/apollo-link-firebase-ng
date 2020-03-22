@@ -55,6 +55,7 @@ function resolveFirebaseVariableValue(
     return payload
   }
 
+  let modified = false
   let resolved: string | null = payload.toString()
   let startingIdx = -1
   let endingIdx = -1
@@ -63,6 +64,7 @@ function resolveFirebaseVariableValue(
     endingIdx = resolved.indexOf('$', startingIdx + 1)
 
     if (startingIdx !== -1 && endingIdx !== -1) {
+      modified = true
       const variableName = resolved.slice(startingIdx + 1, endingIdx)
       const variableValue = resolveExportedName(variableName, parent, parentValue)
       if (variableValue == null) {
@@ -75,7 +77,7 @@ function resolveFirebaseVariableValue(
     }
   } while (startingIdx !== -1 && endingIdx !== -1)
 
-  return resolved
+  return modified ? resolved : payload
 }
 
 function resolveFirebaseVariables(
