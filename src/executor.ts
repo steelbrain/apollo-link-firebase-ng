@@ -211,7 +211,7 @@ function transformNodes(nodes: FirebaseNode[], parent: FirebaseNodeTransformed['
 }
 
 function transformNodeSnapshot({ snapshot, node }: { snapshot: any; node: FirebaseNodeTransformed }) {
-  if (node.children.length === 0) {
+  if (node.children.length === 0 || snapshot == null) {
     return snapshot
   }
 
@@ -349,7 +349,7 @@ function executeFirebaseNode({
         }
         valueSubscription = newValueSubscription
 
-        if (node.children.length === 0 && operationType === 'query') {
+        if ((node.children.length === 0 || databaseValue == null) && operationType === 'query') {
           handleCleanup()
         }
       }
