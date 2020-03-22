@@ -1,3 +1,9 @@
+### 0.0.2
+
+- Fix bug around variable consumption
+- Handle case of no results from Firebase
+- Misc fixes around value calculation
+
 ### 0.0.1
 
 - Initial release
