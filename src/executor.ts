@@ -46,12 +46,16 @@ function resolveExportedName(name: string, parent: FirebaseNodeTransformed, pare
   return null
 }
 
-function resolveFirebaseVariableValue(payload: string, parent: FirebaseNodeTransformed | null, parentValue: any): string {
+function resolveFirebaseVariableValue(
+  payload: string,
+  parent: FirebaseNodeTransformed | null,
+  parentValue: any,
+): string | null {
   if (parent == null || payload == null) {
     return payload
   }
 
-  let resolved = payload.toString()
+  let resolved: string | null = payload.toString()
   let startingIdx = -1
   let endingIdx = -1
   do {
@@ -61,7 +65,13 @@ function resolveFirebaseVariableValue(payload: string, parent: FirebaseNodeTrans
     if (startingIdx !== -1 && endingIdx !== -1) {
       const variableName = resolved.slice(startingIdx + 1, endingIdx)
       const variableValue = resolveExportedName(variableName, parent, parentValue)
-      resolved = `${resolved.slice(0, startingIdx)}${variableValue}${resolved.slice(endingIdx + 1)}`
+      if (variableValue == null) {
+        // If an undefined variable is encountered, dump the whole value
+        resolved = null
+        break
+      } else {
+        resolved = `${resolved.slice(0, startingIdx)}${variableValue}${resolved.slice(endingIdx + 1)}`
+      }
     }
   } while (startingIdx !== -1 && endingIdx !== -1)
 
@@ -79,13 +89,13 @@ function resolveFirebaseVariables(
 
   if (ref != null) {
     ref = resolveFirebaseVariableValue(ref, parent, parentValue)
+  }
+  if (ref != null) {
     key.push(ref)
-    if (orderByChild) {
+    if (orderByChild != null) {
       orderByChild = resolveFirebaseVariableValue(orderByChild, parent, parentValue)
-      key.push(orderByChild)
-    } else {
-      key.push('-')
     }
+    key.push(orderByChild == null ? '-' : orderByChild)
     key.push(orderByKey ? 'yes' : 'no')
     key.push(orderByValue ? 'yes' : 'no')
     key.push(limitToFirst == null ? '-' : limitToFirst.toString())
@@ -126,44 +136,44 @@ function getDatabaseRef({
   database: FDatabase.Database
   variables: FirebaseVariablesResolved
   cache: Map<string, any>
-}): FDatabase.Reference {
+}): FDatabase.Query | FDatabase.Reference {
   const cached = cache.get(variables.key)
   if (cached != null) {
     return cached
   }
 
-  const databaseRef = database.ref(variables.ref as string)
+  let databaseRef: FDatabase.Query | FDatabase.Reference = database.ref(variables.ref as string)
 
   if (variables.orderByChild != null) {
-    databaseRef.orderByChild(variables.orderByChild)
+    databaseRef = databaseRef.orderByChild(variables.orderByChild)
   }
 
   if (variables.orderByKey) {
-    databaseRef.orderByKey()
+    databaseRef = databaseRef.orderByKey()
   }
 
   if (variables.orderByValue) {
-    databaseRef.orderByValue()
+    databaseRef = databaseRef.orderByValue()
   }
 
   if (variables.limitToFirst != null) {
-    databaseRef.limitToFirst(variables.limitToFirst)
+    databaseRef = databaseRef.limitToFirst(variables.limitToFirst)
   }
 
   if (variables.limitToLast != null) {
-    databaseRef.limitToLast(variables.limitToLast)
+    databaseRef = databaseRef.limitToLast(variables.limitToLast)
   }
 
   if (variables.startAt != null) {
-    databaseRef.startAt(variables.startAt)
+    databaseRef = databaseRef.startAt(variables.startAt)
   }
 
   if (variables.endAt != null) {
-    databaseRef.endAt(variables.endAt)
+    databaseRef = databaseRef.endAt(variables.endAt)
   }
 
   if (variables.equalTo != null) {
-    databaseRef.equalTo(variables.equalTo)
+    databaseRef = databaseRef.equalTo(variables.equalTo)
   }
 
   cache.set(variables.key, databaseRef)
@@ -209,11 +219,13 @@ function transformNodeSnapshot({ snapshot, node }: { snapshot: any; node: Fireba
     value = snapshot.map(__value => ({
       __key: null,
       __value,
+      ...__value,
     }))
   } else if (node.array) {
     value = Object.keys(snapshot).map(key => ({
       __key: key,
       __value: snapshot[key],
+      ...snapshot[key],
     }))
   } else {
     value = snapshot
@@ -247,7 +259,7 @@ function executeFirebaseNode({
   let observable: Observable<any>
 
   function processNodeValue(observer: ZenObservable.SubscriptionObserver<any>): ZenObservable.Subscription | null {
-    if (node.children.length === 0) {
+    if (node.children.length === 0 || executableNode.databaseValue == null) {
       observer.next({
         name: node.name,
         parentIndex: node.parentIndex,
@@ -289,9 +301,10 @@ function executeFirebaseNode({
     })
   }
 
-  if (node.variables.ref != null) {
+  const variables = resolveFirebaseVariables(node.variables, node.parent, node.parentValue)
+
+  if (variables.ref != null) {
     observable = new Observable(observer => {
-      const variables = resolveFirebaseVariables(node.variables, node.parent, node.parentValue)
       const databaseRef = getDatabaseRef({
         database,
         variables,
@@ -364,7 +377,7 @@ function executeFirebaseNode({
           databaseValue = node.parentValue[node.name]
         }
       }
-      executableNode.databaseValue = databaseValue
+      executableNode.databaseValue = databaseValue == null ? null : databaseValue
 
       const valueSubscription = processNodeValue(observer)
 
@@ -417,6 +430,7 @@ function executeFirebaseNodes({
     const subscription = observables.subscribe({
       next(values) {
         let newValue
+
         if (parent != null && Array.isArray(parent.databaseValue)) {
           newValue = new Array(parent.databaseValue.length)
           for (let i = 0, { length } = newValue; i < length; i += 1) {

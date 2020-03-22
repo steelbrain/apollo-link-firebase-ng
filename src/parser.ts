@@ -5,7 +5,7 @@ import { FirebaseNode } from './types'
 
 function getArgumentValue({ arg, operation }: { arg: ArgumentNode; operation: Operation }) {
   if (arg.value.kind === 'Variable') {
-    const value = operation[arg.value.name.value]
+    const value = operation.variables[arg.value.name.value]
     if (typeof value === 'undefined') {
       throw new Error(`Use of undefined variable: ${arg.value.name.value}`)
     }
