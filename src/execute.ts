@@ -366,7 +366,7 @@ function executeFirebaseNode({
           node,
         })
 
-        if (lastValue != null) {
+        if (lastValue != null && databaseValue != null) {
           const diff = compare(lastValue as any, databaseValue)
           const changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
           if (!changedForReal) {

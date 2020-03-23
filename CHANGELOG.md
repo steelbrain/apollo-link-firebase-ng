@@ -1,3 +1,7 @@
+### Upcoming
+
+- Handle deleted firebase nodes
+
 ### 0.0.2
 
 - Fix bug around variable consumption
