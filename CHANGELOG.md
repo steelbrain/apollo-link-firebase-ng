@@ -1,4 +1,4 @@
-### Upcoming
+### 0.0.3
 
 - Handle deleted firebase nodes
 
