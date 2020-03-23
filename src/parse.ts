@@ -99,6 +99,11 @@ function processGqlSelection({
       name: 'import',
       value: 'from',
     }),
+    defer: getDirectiveValue({
+      operation,
+      selection,
+      name: 'defer',
+    }),
     key: getDirectiveValue({
       operation,
       selection,

@@ -1,3 +1,7 @@
+### Upcoming
+
+- Add support for `@defer`
+
 ### 0.0.3
 
 - Handle deleted firebase nodes

@@ -395,6 +395,14 @@ function executeFirebaseNode({
         databaseRef.on('value', handleValue)
       }
 
+      if (node.defer) {
+        observer.next({
+          name: node.name,
+          parentIndex: node.parentIndex,
+          value: null,
+        })
+      }
+
       return handleCleanup
     })
   } else {

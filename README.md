@@ -79,6 +79,7 @@ Additionally, you can use the following directives:
 - `@value` to get raw access to Firebase value
 - `@export(as: "fieldName")` to export the value of a field, to be used as variable in another firebase directive
 - `@import(from: "fieldName")` to import the value of a sibling or parent exporter of same name
+- `@defer` to make parent field resolver despite lack of value on firebase subquery. Be careful with using this on deep arrays, as it'll re-render for each individual item received.
 
 ### LICENSE
 

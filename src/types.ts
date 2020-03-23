@@ -23,6 +23,7 @@ export interface FirebaseNode {
   type: string
   export: string | null
   import: string | null
+  defer: boolean | null
   key: boolean | null
   value: boolean | null
   array: boolean | null
