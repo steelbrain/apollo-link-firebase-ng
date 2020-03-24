@@ -2,6 +2,7 @@
 
 - Add support for `@defer`
 - Improved value diffing for array values
+- Allow using operation variables in interpolation
 
 ### 0.0.3
 

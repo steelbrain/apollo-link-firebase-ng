@@ -9,7 +9,6 @@ import {
   FirebaseNodeTransformed,
   OperationType,
   FirebaseNodeExecutable,
-  FirebaseVariables,
   FirebaseVariablesResolved,
 } from './types'
 
@@ -92,38 +91,66 @@ function hasDatabaseValueChanged({
   return changedForReal
 }
 
-function resolveExportedName(name: string, parent: FirebaseNodeTransformed, parentValue: any) {
-  for (let i = 0, { length } = parent.children; i < length; i += 1) {
-    const child = parent.children[i]
-    if (child.export === name) {
-      if (child.key) {
-        return parentValue.__key
+function resolveExportedName({
+  name,
+  node,
+  operation,
+}: {
+  name: string
+  node: FirebaseNodeTransformed
+  operation: Operation
+}) {
+  const { parent, parentValue } = node
+  if (parent != null) {
+    for (let i = 0, { length } = parent.children; i < length; i += 1) {
+      const child = parent.children[i]
+      if (child.export === name) {
+        if (child.key) {
+          return parentValue.__key
+        }
+        if (child.import) {
+          // Find the originally exported name
+          return resolveExportedName({
+            name: child.import,
+            node,
+            operation,
+          })
+        }
+        return parentValue[child.name]
       }
-      if (child.import) {
-        // Find the originally exported name
-        return resolveExportedName(child.import, parent, parentValue)
-      }
-      return parentValue[child.name]
+    }
+
+    if (parent.parent) {
+      return resolveExportedName({
+        name,
+        node: parent,
+        operation,
+      })
     }
   }
 
-  if (parent.parent) {
-    return resolveExportedName(name, parent.parent, parent.parentValue)
+  if (typeof operation.variables[name] !== 'undefined') {
+    return operation.variables[name]
   }
+
   return null
 }
 
-function resolveFirebaseVariableValue(
-  payload: string,
-  parent: FirebaseNodeTransformed | null,
-  parentValue: any,
-): string | null {
-  if (parent == null || payload == null) {
-    return payload
+function resolveFirebaseVariableValue({
+  value,
+  node,
+  operation,
+}: {
+  value: string
+  node: FirebaseNodeTransformed
+  operation: Operation
+}): string | null {
+  if (value == null) {
+    return value
   }
 
   let modified = false
-  let resolved: string | null = payload.toString()
+  let resolved: string | null = value.toString()
   let startingIdx = -1
   let endingIdx = -1
   do {
@@ -133,7 +160,11 @@ function resolveFirebaseVariableValue(
     if (startingIdx !== -1 && endingIdx !== -1) {
       modified = true
       const variableName = resolved.slice(startingIdx + 1, endingIdx)
-      const variableValue = resolveExportedName(variableName, parent, parentValue)
+      const variableValue = resolveExportedName({
+        name: variableName,
+        node,
+        operation,
+      })
       if (variableValue == null) {
         // If an undefined variable is encountered, dump the whole value
         resolved = null
@@ -144,25 +175,35 @@ function resolveFirebaseVariableValue(
     }
   } while (startingIdx !== -1 && endingIdx !== -1)
 
-  return modified ? resolved : payload
+  return modified ? resolved : value
 }
 
-function resolveFirebaseVariables(
-  variables: FirebaseVariables,
-  parent: FirebaseNodeTransformed | null,
-  parentValue: any,
-): FirebaseVariablesResolved {
+function resolveFirebaseVariables({
+  node,
+  operation,
+}: {
+  node: FirebaseNodeTransformed
+  operation: Operation
+}): FirebaseVariablesResolved {
   const key: string[] = []
-  let { ref, orderByChild, startAt, endAt, equalTo } = variables
-  const { orderByKey, orderByValue, limitToFirst, limitToLast } = variables
+  let { ref, orderByChild, startAt, endAt, equalTo } = node.variables
+  const { orderByKey, orderByValue, limitToFirst, limitToLast } = node.variables
 
   if (ref != null) {
-    ref = resolveFirebaseVariableValue(ref, parent, parentValue)
+    ref = resolveFirebaseVariableValue({
+      value: ref,
+      operation,
+      node,
+    })
   }
   if (ref != null) {
     key.push(ref)
     if (orderByChild != null) {
-      orderByChild = resolveFirebaseVariableValue(orderByChild, parent, parentValue)
+      orderByChild = resolveFirebaseVariableValue({
+        value: orderByChild,
+        operation,
+        node,
+      })
     }
     key.push(orderByChild == null ? '-' : orderByChild)
     key.push(orderByKey ? 'yes' : 'no')
@@ -170,15 +211,27 @@ function resolveFirebaseVariables(
     key.push(limitToFirst == null ? '-' : limitToFirst.toString())
     key.push(limitToLast == null ? '-' : limitToLast.toString())
     if (startAt != null) {
-      startAt = resolveFirebaseVariableValue(startAt, parent, parentValue)
+      startAt = resolveFirebaseVariableValue({
+        value: startAt,
+        operation,
+        node,
+      })
     }
     key.push(startAt == null ? '-' : startAt)
     if (endAt != null) {
-      endAt = resolveFirebaseVariableValue(endAt, parent, parentValue)
+      endAt = resolveFirebaseVariableValue({
+        value: endAt,
+        operation,
+        node,
+      })
     }
     key.push(endAt == null ? '-' : endAt)
     if (equalTo != null) {
-      equalTo = resolveFirebaseVariableValue(equalTo, parent, parentValue)
+      equalTo = resolveFirebaseVariableValue({
+        value: equalTo,
+        operation,
+        node,
+      })
     }
     key.push(equalTo == null ? '-' : equalTo)
   }
@@ -370,7 +423,10 @@ function executeFirebaseNode({
     })
   }
 
-  const variables = resolveFirebaseVariables(node.variables, node.parent, node.parentValue)
+  const variables = resolveFirebaseVariables({
+    node,
+    operation,
+  })
 
   if (variables.ref != null) {
     observable = new Observable(observer => {
@@ -451,7 +507,11 @@ function executeFirebaseNode({
         } else if (node.value) {
           databaseValue = node.parentValue.__value
         } else if (node.import) {
-          databaseValue = node.parent == null ? null : resolveExportedName(node.import, node.parent, node.parentValue)
+          databaseValue = resolveExportedName({
+            name: node.import,
+            node,
+            operation,
+          })
         } else if (node.name === '__typename') {
           databaseValue = node.parent == null ? null : node.parent.type
         } else {
