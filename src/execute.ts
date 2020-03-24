@@ -53,11 +53,43 @@ function pathExistsInNode(path: string[], node: FirebaseNode, idx: number): bool
   if (node.children.length === 0) {
     return true
   }
+  if (path[idx] === '__value') {
+    return false
+  }
   const relevantChild = node.children.find(nodeChild => nodeChild.name === path[idx])
   if (relevantChild) {
     return pathExistsInNode(path, relevantChild, idx + 1)
   }
   return false
+}
+
+function hasDatabaseValueChanged({
+  newValue,
+  oldValue,
+  node,
+}: {
+  newValue: any
+  oldValue: any
+  node: FirebaseNodeTransformed
+}) {
+  let changedForReal = false
+  if (Array.isArray(newValue)) {
+    changedForReal = newValue.length !== oldValue.length
+    if (!changedForReal) {
+      for (let i = 0, { length } = newValue; i < length; i += 1) {
+        const diff = compare(oldValue[i], newValue[i])
+        changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
+        if (changedForReal) {
+          break
+        }
+      }
+    }
+  } else {
+    const diff = compare(oldValue, newValue)
+    changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
+  }
+
+  return changedForReal
 }
 
 function resolveExportedName(name: string, parent: FirebaseNodeTransformed, parentValue: any) {
@@ -367,9 +399,13 @@ function executeFirebaseNode({
         })
 
         if (lastValue != null && databaseValue != null) {
-          const diff = compare(lastValue as any, databaseValue)
-          const changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
-          if (!changedForReal) {
+          if (
+            !hasDatabaseValueChanged({
+              newValue: databaseValue,
+              oldValue: lastValue,
+              node,
+            })
+          ) {
             return
           }
         }
