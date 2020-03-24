@@ -1,4 +1,4 @@
-### Upcoming
+### 0.0.4
 
 - Add support for `@defer`
 - Improved value diffing for array values
