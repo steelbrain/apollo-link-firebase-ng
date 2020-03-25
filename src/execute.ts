@@ -318,8 +318,8 @@ export default function executeFirebaseNodes({
       return nodeParentValue.__value
     }
     if (node.import) {
-      return resolveFirebaseVariableValue({
-        value: node.import,
+      return resolveExportedName({
+        name: node.import,
         operation,
         context,
       })
