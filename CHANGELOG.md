@@ -1,4 +1,4 @@
-### Upcoming
+### 0.1.0
 
 - Internal rewrite to move away from Observables (no Public API changes)
   Benefit of rewrite is less memory/cpu usage, downside is that objects are
