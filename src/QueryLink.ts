@@ -35,31 +35,22 @@ export default class QueryLink extends ApolloLink {
       query,
     })
 
-    const observable = execute({
-      database: this.database,
-      operation,
-      operationName,
-      nodes: firebaseQuery,
-      parent: null,
-      operationType: 'query',
-      cache: new Map(),
-    })
-
     return new Observable(observer => {
-      const subscription = observable.subscribe({
-        next(value) {
-          observer.next({ data: value })
-        },
-        error(err) {
-          observer.error(err)
-        },
-        complete() {
+      const response = execute({
+        database: this.database,
+        operation,
+        operationName,
+        nodes: firebaseQuery,
+        parentValue: null,
+        context: { exports: {}, parent: null },
+        operationType: 'query',
+        cache: new Map(),
+        onValue(data) {
+          observer.next({ data })
           observer.complete()
         },
       })
-      return () => {
-        subscription.unsubscribe()
-      }
+      return response.cleanup
     })
   }
 }

@@ -10,7 +10,8 @@
   "author": "steelbrain <i@steelbrain.me>",
   "license": "MIT",
   "dependencies": {
-    "fast-json-patch": "^3.0.0-1"
+    "fast-json-patch": "^3.0.0-1",
+    "lodash": "^4"
   },
   "devDependencies": {
     "@babel/core": "^7.8.7",

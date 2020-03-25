@@ -1,4 +1,6 @@
 /* eslint-disable class-methods-use-this */
+
+import debounce from 'lodash/debounce'
 import { database as FDatabase } from 'firebase'
 import { hasDirectives, getOperationName, getOperationDefinition } from 'apollo-utilities'
 import { ApolloLink, Operation, NextLink, Observable, FetchResult } from 'apollo-link'
@@ -35,31 +37,21 @@ export default class SubscriptionLink extends ApolloLink {
       query,
     })
 
-    const observable = execute({
-      database: this.database,
-      operation,
-      operationName,
-      nodes: firebaseQuery,
-      parent: null,
-      operationType: 'subscribe',
-      cache: new Map(),
-    })
-
     return new Observable(observer => {
-      const subscription = observable.subscribe({
-        next(value) {
-          observer.next({ data: value })
-        },
-        error(err) {
-          observer.error(err)
-        },
-        complete() {
-          observer.complete()
-        },
+      const debouncedNext = debounce(data => observer.next({ data }), 16)
+
+      const response = execute({
+        database: this.database,
+        operation,
+        operationName,
+        nodes: firebaseQuery,
+        parentValue: null,
+        context: { exports: {}, parent: null },
+        operationType: 'subscribe',
+        cache: new Map(),
+        onValue: debouncedNext,
       })
-      return () => {
-        subscription.unsubscribe()
-      }
+      return response.cleanup
     })
   }
 }
