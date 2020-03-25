@@ -11,7 +11,7 @@ function pathExistsInNode(path: string[], node: FirebaseNode, idx: number): bool
     return true
   }
   if (path[idx] === '__value') {
-    return false
+    return pathExistsInNode(path, node, idx + 1)
   }
   const relevantChild = node.children.find(nodeChild => nodeChild.name === path[idx])
   if (relevantChild) {
@@ -307,6 +307,10 @@ export default function executeFirebaseNodes({
   }
 
   function resolveValueForNode(node, nodeParentValue) {
+    if (nodeParentValue == null) {
+      return null
+    }
+
     if (node.key) {
       return nodeParentValue.__key
     }
@@ -346,14 +350,15 @@ export default function executeFirebaseNodes({
       }
       return
     }
+    result.totalRefs += 1
 
     let loaded = false
+    let lastValue = null
     const databaseRef = getDatabaseRef({
       database,
       variables,
       cache,
     })
-    result.totalRefs += 1
     function handleValue(snapshot) {
       if (!loaded) {
         loaded = true
@@ -370,6 +375,19 @@ export default function executeFirebaseNodes({
         }
         return
       }
+
+      if (lastValue != null) {
+        if (
+          !hasDatabaseValueChanged({
+            newValue: databaseSnapshot,
+            oldValue: lastValue,
+            node,
+          })
+        ) {
+          return
+        }
+      }
+      lastValue = databaseSnapshot
 
       const childrenResult = executeFirebaseNodes({
         database,
