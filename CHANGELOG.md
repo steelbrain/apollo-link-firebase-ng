@@ -1,3 +1,7 @@
+### 0.1.1
+
+- Add support for `@import` in top-level fields
+
 ### 0.1.0
 
 - Internal rewrite to move away from Observables (no Public API changes)

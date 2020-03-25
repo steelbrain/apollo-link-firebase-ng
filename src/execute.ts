@@ -282,7 +282,7 @@ export default function executeFirebaseNodes({
 }) {
   let setUp = false
   let cleanedUp = false
-  const cleanup: (() => void)[] = []
+  let cleanup: (() => void)[] = []
   const result = {
     value: null as any,
     totalRefs: 0,
@@ -295,6 +295,7 @@ export default function executeFirebaseNodes({
       cleanup.forEach(cb => {
         cb()
       })
+      cleanup = []
     },
   }
 
@@ -307,6 +308,13 @@ export default function executeFirebaseNodes({
   }
 
   function resolveValueForNode(node, nodeParentValue) {
+    if (node.import) {
+      return resolveExportedName({
+        name: node.import,
+        operation,
+        context,
+      })
+    }
     if (nodeParentValue == null) {
       return null
     }
@@ -317,13 +325,6 @@ export default function executeFirebaseNodes({
     if (node.value) {
       return nodeParentValue.__value
     }
-    if (node.import) {
-      return resolveExportedName({
-        name: node.import,
-        operation,
-        context,
-      })
-    }
     if (node.name === '__typename') {
       return node.parent == null ? null : node.parent.type
     }
@@ -333,6 +334,24 @@ export default function executeFirebaseNodes({
 
   function processNode(node: FirebaseNode, nodeContext: FirebaseContext, nodeParentValue: any, parentIndex: number | null) {
     let variables
+    let loaded = false
+
+    function handleValueSet() {
+      if (!loaded) {
+        loaded = true
+        result.loadedRefs += 1
+      }
+      if (result.loadedRefs === result.totalRefs && setUp) {
+        onValue(result.value)
+      }
+    }
+
+    function handleValueUnset() {
+      if (loaded) {
+        loaded = false
+        result.loadedRefs -= 1
+      }
+    }
 
     if (node.variables.ref) {
       variables = resolveFirebaseVariables({
@@ -344,15 +363,38 @@ export default function executeFirebaseNodes({
 
     if (variables == null || variables.ref == null) {
       const nodeValue = resolveValueForNode(node, nodeParentValue)
-      setNodeValue(node, nodeValue, parentIndex)
-      if (node.export) {
-        nodeContext.exports[node.export] = nodeValue
+      if (node.children.length === 0) {
+        setNodeValue(node, nodeValue, parentIndex)
+        if (node.export) {
+          nodeContext.exports[node.export] = nodeValue
+        }
+      } else {
+        result.totalRefs += 1
+        const response = executeFirebaseNodes({
+          database,
+          operation,
+          operationName,
+          operationType,
+          cache,
+          nodes: node.children,
+          parentValue: transformNodeSnapshot({
+            node,
+            snapshot: nodeValue,
+          }),
+          context: nodeContext,
+          onValue(value) {
+            setNodeValue(node, value, parentIndex)
+            handleValueSet()
+          },
+        })
+        cleanup.push(() => {
+          response.cleanup()
+        })
       }
       return
     }
     result.totalRefs += 1
 
-    let loaded = false
     let lastValue = null
     let lastResult: ReturnType<typeof executeFirebaseNodes> | null = null
     const databaseRef = getDatabaseRef({
@@ -360,22 +402,6 @@ export default function executeFirebaseNodes({
       variables,
       cache,
     })
-
-    function handleValueSet() {
-      if (!loaded) {
-        loaded = true
-        result.loadedRefs += 1
-      }
-      if (result.loadedRefs === result.totalRefs && setUp) {
-        onValue(result.value)
-      }
-    }
-    function handleValueUnset() {
-      if (loaded) {
-        loaded = false
-        result.loadedRefs -= 1
-      }
-    }
 
     function handleValue(snapshot) {
       const databaseSnapshot = transformNodeSnapshot({ snapshot: snapshot.val(), node })
