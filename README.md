@@ -81,6 +81,8 @@ Additionally, you can use the following directives:
 - `@import(from: "fieldName")` to import the value of a sibling or parent exporter of same name
 - `@defer` to make parent field resolver despite lack of value on firebase subquery. Be careful with using this on deep arrays, as it'll re-render for each individual item received.
 
+Note that the objects received are to be treated as references, this is to save CPU/Memory when possible. Consumers can choose to deep clone the response when necessary.
+
 ### LICENSE
 
 The contents of this package/repository are licensed under the terms of MIT License. See the LICENSE file for more info.

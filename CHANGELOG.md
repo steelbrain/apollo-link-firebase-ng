@@ -1,3 +1,9 @@
+### Upcoming
+
+- Internal rewrite to move away from Observables (no Public API changes)
+  Benefit of rewrite is less memory/cpu usage, downside is that objects are
+  now to be considered mutable. Clone them if/when necessary.
+
 ### 0.0.4
 
 - Add support for `@defer`
