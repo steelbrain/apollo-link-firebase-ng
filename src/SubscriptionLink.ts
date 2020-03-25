@@ -36,9 +36,12 @@ export default class SubscriptionLink extends ApolloLink {
       operation,
       query,
     })
+    const cache = new Map()
 
     return new Observable(observer => {
-      const debouncedNext = debounce(data => observer.next({ data }), 16)
+      const debouncedNext = debounce(data => {
+        observer.next({ data })
+      }, 16)
 
       const response = execute({
         database: this.database,
@@ -48,7 +51,7 @@ export default class SubscriptionLink extends ApolloLink {
         parentValue: null,
         context: { exports: {}, parent: null },
         operationType: 'subscribe',
-        cache: new Map(),
+        cache,
         onValue: debouncedNext,
       })
       return response.cleanup

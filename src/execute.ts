@@ -280,11 +280,11 @@ export default function executeFirebaseNodes({
   cache: Map<string, any>
   onValue: (value: any) => void
 }) {
+  let setUp = false
   let cleanedUp = false
   const cleanup: (() => void)[] = []
   const result = {
     value: null as any,
-    loaded: false,
     totalRefs: 0,
     loadedRefs: 0,
     cleanup() {
@@ -354,25 +354,34 @@ export default function executeFirebaseNodes({
 
     let loaded = false
     let lastValue = null
+    let lastResult: ReturnType<typeof executeFirebaseNodes> | null = null
     const databaseRef = getDatabaseRef({
       database,
       variables,
       cache,
     })
-    function handleValue(snapshot) {
+
+    function handleValueSet() {
       if (!loaded) {
         loaded = true
         result.loadedRefs += 1
-        if (result.loadedRefs === result.totalRefs) {
-          result.loaded = true
-        }
       }
+      if (result.loadedRefs === result.totalRefs && setUp) {
+        onValue(result.value)
+      }
+    }
+    function handleValueUnset() {
+      if (loaded) {
+        loaded = false
+        result.loadedRefs -= 1
+      }
+    }
+
+    function handleValue(snapshot) {
       const databaseSnapshot = transformNodeSnapshot({ snapshot: snapshot.val(), node })
       if (databaseSnapshot == null || node.children.length === 0) {
         setNodeValue(node, resolveValueForNode(node, databaseSnapshot), parentIndex)
-        if (result.loaded) {
-          onValue(result.value)
-        }
+        handleValueSet()
         return
       }
 
@@ -386,10 +395,14 @@ export default function executeFirebaseNodes({
         ) {
           return
         }
+        if (lastResult) {
+          lastResult.cleanup()
+        }
       }
       lastValue = databaseSnapshot
 
-      const childrenResult = executeFirebaseNodes({
+      handleValueUnset()
+      lastResult = executeFirebaseNodes({
         database,
         operation,
         operationName,
@@ -400,20 +413,26 @@ export default function executeFirebaseNodes({
         context: nodeContext,
         onValue(value) {
           setNodeValue(node, value, parentIndex)
-          if (result.loaded) {
-            onValue(result.value)
-          }
+          handleValueSet()
         },
       })
-      cleanup.push(childrenResult.cleanup)
     }
     if (operationType === 'query') {
       databaseRef.once('value', handleValue)
     } else {
       databaseRef.on('value', handleValue)
       cleanup.push(() => {
+        handleValueUnset()
         databaseRef.off('value', handleValue)
+        if (lastResult) {
+          lastResult.cleanup()
+        }
       })
+    }
+
+    if (node.defer) {
+      setNodeValue(node, null, parentIndex)
+      handleValueSet()
     }
   }
 
@@ -433,11 +452,9 @@ export default function executeFirebaseNodes({
       processNode(node, nodeContext, parentValue, null)
     })
   }
+  setUp = true
 
   if (result.loadedRefs === result.totalRefs) {
-    result.loaded = true
-  }
-  if (result.loaded) {
     onValue(result.value)
   }
 
