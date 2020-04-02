@@ -1,4 +1,4 @@
-### Upcoming
+### 0.1.2
 
 - Fix order of results when sorting is used
 - Fix casting of Int and Float values in GQL literals
@@ -11,7 +11,7 @@
 
 - Internal rewrite to move away from Observables (no Public API changes)
   Benefit of rewrite is less memory/cpu usage, downside is that objects are
-  now to be considered mutable. Clone them if/when necessary.
+  now to be considered mutable (for subscriptions). Clone them if/when necessary.
 
 ### 0.0.4
 
