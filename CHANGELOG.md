@@ -1,3 +1,7 @@
+### Upcoming
+
+- Fix handling of null ref values
+
 ### 0.1.2
 
 - Fix order of results when sorting is used

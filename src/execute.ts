@@ -340,6 +340,10 @@ export default function executeFirebaseNodes({
     if (node.name === '__typename') {
       return node.parent == null ? null : node.parent.type
     }
+    if (nodeParentValue.__value == null) {
+      return null
+    }
+
     const nodeValue = nodeParentValue.__value[node.name]
     return nodeValue == null ? null : nodeValue
   }
