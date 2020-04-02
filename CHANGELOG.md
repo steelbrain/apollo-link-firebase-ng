@@ -1,5 +1,6 @@
 ### Upcoming
 
+- Fix order of results when sorting is used
 - Fix casting of Int and Float values in GQL literals
 
 ### 0.1.1

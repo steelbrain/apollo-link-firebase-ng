@@ -247,11 +247,6 @@ function transformFirebaseSnapshotValue({ value: snapshotValue, node }: { value:
       __key: null,
       __value,
     }))
-  } else if (node.array) {
-    value = Object.keys(snapshotValue).map(key => ({
-      __key: key,
-      __value: snapshotValue[key],
-    }))
   } else {
     value = { __key: null, __value: snapshotValue }
   }
@@ -260,10 +255,20 @@ function transformFirebaseSnapshotValue({ value: snapshotValue, node }: { value:
 }
 
 function transformFirebaseSnapshot({ snapshot, node }: { snapshot: FDatabase.DataSnapshot; node: FirebaseNode }) {
-  return transformFirebaseSnapshotValue({
-    value: snapshot.val(),
-    node,
-  })
+  let value: any
+  if (node.array) {
+    value = []
+    snapshot.forEach(snapshotItem => {
+      value.push({
+        __key: snapshotItem.key,
+        __value: snapshotItem.val(),
+      })
+    })
+  } else {
+    value = { __key: null, __value: snapshot.val() }
+  }
+
+  return value
 }
 
 export default function executeFirebaseNodes({
