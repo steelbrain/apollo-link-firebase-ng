@@ -14,13 +14,17 @@ function getArgumentValue({ arg, operation }: { arg: ArgumentNode; operation: Op
   }
 
   // Only process literal values
-  if (
-    arg.value.kind === 'BooleanValue' ||
-    arg.value.kind === 'StringValue' ||
-    arg.value.kind === 'IntValue' ||
-    arg.value.kind === 'FloatValue'
-  ) {
+  if (arg.value.kind === 'StringValue') {
     return arg.value.value
+  }
+  if (arg.value.kind === 'BooleanValue') {
+    return arg.value.value
+  }
+  if (arg.value.kind === 'IntValue') {
+    return parseInt(arg.value.value, 10)
+  }
+  if (arg.value.kind === 'FloatValue') {
+    return parseFloat(arg.value.value)
   }
 
   return null

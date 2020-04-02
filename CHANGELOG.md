@@ -1,3 +1,7 @@
+### Upcoming
+
+- Fix casting of Int and Float values in GQL literals
+
 ### 0.1.1
 
 - Add support for `@import` in top-level fields
