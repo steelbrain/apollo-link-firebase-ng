@@ -1,6 +1,7 @@
 ### Upcoming
 
 - Fix handling of null ref values
+- Add support for `transformRef` inside `@firebase`
 
 ### 0.1.2
 

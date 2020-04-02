@@ -8,6 +8,7 @@ export interface FirebaseVariables {
   startAt: any | null
   endAt: any | null
   equalTo: any | null
+  transformRef(args: { ref: string; parentValue: any }): string | null
 }
 
 export type FirebaseVariablesResolved = FirebaseVariables & {

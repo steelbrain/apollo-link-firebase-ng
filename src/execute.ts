@@ -119,7 +119,7 @@ function resolveFirebaseVariables({
 }): FirebaseVariablesResolved {
   const key: string[] = []
   let { ref, orderByChild, startAt, endAt, equalTo } = node.variables
-  const { orderByKey, orderByValue, limitToFirst, limitToLast } = node.variables
+  const { orderByKey, orderByValue, limitToFirst, limitToLast, transformRef } = node.variables
 
   if (ref != null) {
     ref = resolveFirebaseVariableValue({
@@ -179,6 +179,7 @@ function resolveFirebaseVariables({
     startAt,
     endAt,
     equalTo,
+    transformRef,
   }
 }
 
@@ -349,7 +350,7 @@ export default function executeFirebaseNodes({
   }
 
   function processNode(node: FirebaseNode, nodeContext: FirebaseContext, nodeParentValue: any, parentIndex: number | null) {
-    let variables
+    let variables: FirebaseVariablesResolved | null = null
     let loaded = false
 
     function handleValueSet() {
@@ -375,6 +376,13 @@ export default function executeFirebaseNodes({
         context: nodeContext,
         operation,
       })
+
+      if (variables.ref && typeof variables.transformRef === 'function') {
+        variables.ref = variables.transformRef({
+          ref: variables.ref,
+          parentValue: nodeParentValue,
+        })
+      }
     }
 
     if (variables == null || variables.ref == null) {

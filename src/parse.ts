@@ -187,6 +187,12 @@ function processGqlSelection({
         name: 'firebase',
         value: 'equalTo',
       }),
+      transformRef: getDirectiveValue({
+        operation,
+        selection,
+        name: 'firebase',
+        value: 'transformRef',
+      }),
     },
   }
 

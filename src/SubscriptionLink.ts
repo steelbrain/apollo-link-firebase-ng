@@ -32,13 +32,14 @@ export default class SubscriptionLink extends ApolloLink {
       throw new Error(`Unsupported operation in FirebaseSubscriptionLink`)
     }
 
-    const firebaseQuery = parse({
-      operation,
-      query,
-    })
     const cache = new Map()
 
     return new Observable(observer => {
+      const firebaseQuery = parse({
+        operation,
+        query,
+      })
+
       const debouncedNext = debounce(data => {
         observer.next({ data })
       }, 16)
