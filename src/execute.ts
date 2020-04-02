@@ -235,28 +235,35 @@ function getDatabaseRef({
   return databaseRef
 }
 
-function transformNodeSnapshot({ snapshot, node }: { snapshot: any; node: FirebaseNode }) {
-  if (node.children.length === 0 || snapshot == null) {
-    return snapshot
+function transformFirebaseSnapshotValue({ value: snapshotValue, node }: { value: any; node: FirebaseNode }) {
+  if (node.children.length === 0 || snapshotValue == null) {
+    return snapshotValue
   }
 
   let value: any
 
-  if (Array.isArray(snapshot)) {
-    value = snapshot.map(__value => ({
+  if (Array.isArray(snapshotValue)) {
+    value = snapshotValue.map(__value => ({
       __key: null,
       __value,
     }))
   } else if (node.array) {
-    value = Object.keys(snapshot).map(key => ({
+    value = Object.keys(snapshotValue).map(key => ({
       __key: key,
-      __value: snapshot[key],
+      __value: snapshotValue[key],
     }))
   } else {
-    value = { __key: null, __value: snapshot }
+    value = { __key: null, __value: snapshotValue }
   }
 
   return value
+}
+
+function transformFirebaseSnapshot({ snapshot, node }: { snapshot: FDatabase.DataSnapshot; node: FirebaseNode }) {
+  return transformFirebaseSnapshotValue({
+    value: snapshot.val(),
+    node,
+  })
 }
 
 export default function executeFirebaseNodes({
@@ -377,9 +384,9 @@ export default function executeFirebaseNodes({
           operationType,
           cache,
           nodes: node.children,
-          parentValue: transformNodeSnapshot({
+          parentValue: transformFirebaseSnapshotValue({
             node,
-            snapshot: nodeValue,
+            value: nodeValue,
           }),
           context: nodeContext,
           onValue(value) {
@@ -403,8 +410,12 @@ export default function executeFirebaseNodes({
       cache,
     })
 
-    function handleValue(snapshot) {
-      const databaseSnapshot = transformNodeSnapshot({ snapshot: snapshot.val(), node })
+    function handleValue(snapshot: FDatabase.DataSnapshot) {
+      const databaseSnapshot = transformFirebaseSnapshot({
+        snapshot,
+        node,
+      })
+
       if (databaseSnapshot == null || node.children.length === 0) {
         setNodeValue(node, resolveValueForNode(node, databaseSnapshot), parentIndex)
         handleValueSet()
