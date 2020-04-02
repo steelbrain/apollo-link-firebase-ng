@@ -41,7 +41,7 @@ export default class QueryLink extends ApolloLink {
         operation,
         operationName,
         nodes: firebaseQuery,
-        parentValue: null,
+        parentValue: {},
         context: { exports: {}, parent: null },
         operationType: 'query',
         cache: new Map(),

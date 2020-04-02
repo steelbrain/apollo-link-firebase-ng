@@ -328,10 +328,6 @@ export default function executeFirebaseNodes({
         context,
       })
     }
-    if (nodeParentValue == null) {
-      return null
-    }
-
     if (node.key) {
       return nodeParentValue.__key
     }
@@ -380,41 +376,45 @@ export default function executeFirebaseNodes({
       if (variables.ref && typeof variables.transformRef === 'function') {
         variables.ref = variables.transformRef({
           ref: variables.ref,
-          parentValue: nodeParentValue,
+          parentKey: nodeParentValue.__key,
+          parentValue: nodeParentValue.__value,
         })
       }
     }
 
     if (variables == null || variables.ref == null) {
       const nodeValue = resolveValueForNode(node, nodeParentValue)
-      if (node.children.length === 0) {
+
+      if (nodeValue == null || node.children.length === 0) {
         setNodeValue(node, nodeValue, parentIndex)
         if (node.export) {
           nodeContext.exports[node.export] = nodeValue
         }
-      } else {
-        result.totalRefs += 1
-        const response = executeFirebaseNodes({
-          database,
-          operation,
-          operationName,
-          operationType,
-          cache,
-          nodes: node.children,
-          parentValue: transformFirebaseSnapshotValue({
-            node,
-            value: nodeValue,
-          }),
-          context: nodeContext,
-          onValue(value) {
-            setNodeValue(node, value, parentIndex)
-            handleValueSet()
-          },
-        })
-        cleanup.push(() => {
-          response.cleanup()
-        })
+        return
       }
+
+      result.totalRefs += 1
+      const response = executeFirebaseNodes({
+        database,
+        operation,
+        operationName,
+        operationType,
+        cache,
+        nodes: node.children,
+        parentValue: transformFirebaseSnapshotValue({
+          node,
+          value: nodeValue,
+        }),
+        context: nodeContext,
+        onValue(value) {
+          setNodeValue(node, value, parentIndex)
+          handleValueSet()
+        },
+      })
+      cleanup.push(() => {
+        response.cleanup()
+      })
+
       return
     }
     result.totalRefs += 1

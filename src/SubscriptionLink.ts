@@ -49,7 +49,7 @@ export default class SubscriptionLink extends ApolloLink {
         operation,
         operationName,
         nodes: firebaseQuery,
-        parentValue: null,
+        parentValue: {},
         context: { exports: {}, parent: null },
         operationType: 'subscribe',
         cache,
