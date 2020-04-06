@@ -196,7 +196,10 @@ function processGqlSelection({
     },
   }
 
-  if (firebaseNode.variables.ref != null && typeof firebaseNode.type !== 'string') {
+  if (
+    (firebaseNode.variables.ref != null || firebaseNode.variables.transformRef != null) &&
+    typeof firebaseNode.type !== 'string'
+  ) {
     throw new Error(`Missing type parameter in firebase directive`)
   }
 

@@ -366,20 +366,20 @@ export default function executeFirebaseNodes({
       }
     }
 
-    if (node.variables.ref) {
+    if (node.variables.ref || typeof node.variables.transformRef === 'function') {
       variables = resolveFirebaseVariables({
         node,
         context: nodeContext,
         operation,
       })
+    }
 
-      if (variables.ref && typeof variables.transformRef === 'function') {
-        variables.ref = variables.transformRef({
-          ref: variables.ref,
-          parentKey: nodeParentValue.__key,
-          parentValue: nodeParentValue.__value,
-        })
-      }
+    if (variables != null && typeof variables.transformRef === 'function') {
+      variables.ref = variables.transformRef({
+        ref: variables.ref,
+        parentKey: nodeParentValue.__key,
+        parentValue: nodeParentValue.__value,
+      })
     }
 
     if (variables == null || variables.ref == null) {
