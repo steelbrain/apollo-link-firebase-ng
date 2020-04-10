@@ -1,3 +1,7 @@
+### 0.2.1
+
+- Ignore non-package files in npm package
+
 ### 0.2.0
 
 - Fix handling of null ref values
