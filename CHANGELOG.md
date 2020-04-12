@@ -1,3 +1,7 @@
+### 0.2.2
+
+- Republish to workaround NPM issue
+
 ### 0.2.1
 
 - Ignore non-package files in npm package
