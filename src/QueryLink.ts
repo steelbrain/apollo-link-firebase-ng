@@ -30,7 +30,7 @@ export default class QueryLink extends ApolloLink {
       throw new Error(`Unsupported operation in FirebaseQueryLink`)
     }
 
-    return new Observable(observer => {
+    return new Observable((observer) => {
       const firebaseQuery = parse({
         operation,
         query,

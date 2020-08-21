@@ -13,7 +13,7 @@ function pathExistsInNode(path: string[], node: FirebaseNode, idx: number): bool
   if (path[idx] === '__value') {
     return pathExistsInNode(path, node, idx + 1)
   }
-  const relevantChild = node.children.find(nodeChild => nodeChild.name === path[idx])
+  const relevantChild = node.children.find((nodeChild) => nodeChild.name === path[idx])
   if (relevantChild) {
     return pathExistsInNode(path, relevantChild, idx + 1)
   }
@@ -27,7 +27,7 @@ function hasDatabaseValueChanged({ newValue, oldValue, node }: { newValue: any; 
     if (!changedForReal) {
       for (let i = 0, { length } = newValue; i < length; i += 1) {
         const diff = compare(oldValue[i], newValue[i])
-        changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
+        changedForReal = diff.some((item) => pathExistsInNode(item.path.split('/'), node, 1))
         if (changedForReal) {
           break
         }
@@ -35,7 +35,7 @@ function hasDatabaseValueChanged({ newValue, oldValue, node }: { newValue: any; 
     }
   } else {
     const diff = compare(oldValue, newValue)
-    changedForReal = diff.some(item => pathExistsInNode(item.path.split('/'), node, 1))
+    changedForReal = diff.some((item) => pathExistsInNode(item.path.split('/'), node, 1))
   }
 
   return changedForReal
@@ -244,7 +244,7 @@ function transformFirebaseSnapshotValue({ value: snapshotValue, node }: { value:
   let value: any
 
   if (Array.isArray(snapshotValue)) {
-    value = snapshotValue.map(__value => ({
+    value = snapshotValue.map((__value) => ({
       __key: null,
       __value,
     }))
@@ -259,7 +259,7 @@ function transformFirebaseSnapshot({ snapshot, node }: { snapshot: FDatabase.Dat
   let value: any
   if (node.array) {
     value = []
-    snapshot.forEach(snapshotItem => {
+    snapshot.forEach((snapshotItem) => {
       value.push({
         __key: snapshotItem.key,
         __value: snapshotItem.val(),
@@ -292,7 +292,12 @@ export default function executeFirebaseNodes({
   operationType: OperationType
   cache: Map<string, any>
   onValue: (value: any) => void
-}) {
+}): {
+  value: any
+  totalRefs: number
+  loadedRefs: number
+  cleanup: () => void
+} {
   let setUp = false
   let cleanedUp = false
   let cleanup: (() => void)[] = []
@@ -305,7 +310,7 @@ export default function executeFirebaseNodes({
         return
       }
       cleanedUp = true
-      cleanup.forEach(cb => {
+      cleanup.forEach((cb) => {
         cb()
       })
       cleanup = []
@@ -495,14 +500,14 @@ export default function executeFirebaseNodes({
     parentValue.forEach((parentValueItem, parentIndex) => {
       result.value[parentIndex] = {}
       const nodeContext = { exports: {}, parent: context }
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         processNode(node, nodeContext, parentValueItem, parentIndex)
       })
     })
   } else {
     result.value = {}
     const nodeContext = { exports: {}, parent: context }
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       processNode(node, nodeContext, parentValue, null)
     })
   }
