@@ -57,7 +57,7 @@ function getDirectiveValue({
           return null
         }
 
-        const directiveArg = directive.arguments.find(item => item.kind === 'Argument' && item.name.value === value)
+        const directiveArg = directive.arguments.find((item) => item.kind === 'Argument' && item.name.value === value)
 
         if (directiveArg == null) {
           return null
@@ -204,7 +204,7 @@ function processGqlSelection({
   }
 
   if (selection.selectionSet != null) {
-    selection.selectionSet.selections.forEach(childSelection => {
+    selection.selectionSet.selections.forEach((childSelection) => {
       let selections: SelectionNode[] | ReadonlyArray<SelectionNode>
       if (childSelection.kind === 'FragmentSpread') {
         const fragmentName = childSelection.name.value
@@ -220,7 +220,7 @@ function processGqlSelection({
         selections = [childSelection]
       }
 
-      selections.forEach(childSelectionItem => {
+      selections.forEach((childSelectionItem) => {
         const childFirebaseNode = processGqlSelection({
           operation,
           selection: childSelectionItem,
@@ -241,11 +241,17 @@ function processGqlSelection({
   return firebaseNode
 }
 
-export default function parse({ operation, query }: { operation: Operation; query: OperationDefinitionNode }) {
+export default function parse({
+  operation,
+  query,
+}: {
+  operation: Operation
+  query: OperationDefinitionNode
+}): FirebaseNode[] {
   const tree: FirebaseNode[] = []
   const fragmentsMap: Map<string, FragmentDefinitionNode> = new Map()
 
-  operation.query.definitions.forEach(item => {
+  operation.query.definitions.forEach((item) => {
     if (item.kind !== 'FragmentDefinition') {
       return
     }
@@ -253,7 +259,7 @@ export default function parse({ operation, query }: { operation: Operation; quer
     fragmentsMap.set(item.name.value, item)
   })
 
-  query.selectionSet.selections.forEach(selection => {
+  query.selectionSet.selections.forEach((selection) => {
     const firebaseNode = processGqlSelection({
       operation,
       selection,

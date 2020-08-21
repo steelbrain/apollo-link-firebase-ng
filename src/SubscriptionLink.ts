@@ -34,13 +34,13 @@ export default class SubscriptionLink extends ApolloLink {
 
     const cache = new Map()
 
-    return new Observable(observer => {
+    return new Observable((observer) => {
       const firebaseQuery = parse({
         operation,
         query,
       })
 
-      const debouncedNext = debounce(data => {
+      const debouncedNext = debounce((data) => {
         observer.next({ data })
       }, 16)
 
